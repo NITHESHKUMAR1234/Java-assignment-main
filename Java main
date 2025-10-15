@@ -1,0 +1,415 @@
+package Farmer;
+
+import java.util.*;
+
+class Vendor {
+    private String name;
+    private List<Product> products = new ArrayList<>();
+
+    public Vendor(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void addProduct(Product p) {
+        products.add(p);
+    }
+
+    public List<Product> getProducts() {
+        return products;
+    }
+
+    public void reduceStock(String productId, int qty) {
+        for (Product p : products) {
+            if (p.getId().equals(productId)) {
+                p.reduceQuantity(qty);
+            }
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "Vendor: " + name + ", Products: " + products.size();
+    }
+}
+
+class Product {
+    private String id;
+    private String name;
+    private double price;
+    private int quantity;
+
+    public Product(String id, String name, double price, int quantity) {
+        this.id = id;
+        this.name = name;
+        this.price = price;
+        this.quantity = quantity;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public double getPrice() { return price; }
+    public int getQuantity() { return quantity; }
+
+    public void reduceQuantity(int qty) { this.quantity -= qty; }
+    public void increaseQuantity(int qty) { this.quantity += qty; }
+
+    @Override
+    public String toString() {
+        return id + " | " + name + " | $" + price + " | Stock: " + quantity;
+    }
+}
+
+class OrderItem {
+    private Product product;
+    private int quantity;
+    private double subtotal;
+
+    public OrderItem(Product product, int quantity) {
+        this.product = product;
+        this.quantity = quantity;
+        this.subtotal = calculateSubtotal();
+    }
+
+    public double calculateSubtotal() {
+        return product.getPrice() * quantity;
+    }
+
+    public Product getProduct() { return product; }
+    public int getQuantity() { return quantity; }
+    public double getSubtotal() { return subtotal; }
+}
+
+class Order {
+    private String id;
+    private Vendor vendor;
+    private List<OrderItem> items = new ArrayList<>();
+    private double totalAmount;
+    private boolean paid = false;
+
+    public Order(String id, Vendor vendor) {
+        this.id = id;
+        this.vendor = vendor;
+    }
+
+    public void addItem(OrderItem item) {
+        items.add(item);
+        vendor.reduceStock(item.getProduct().getId(), item.getQuantity());
+    }
+
+    public double calculateTotal() {
+        totalAmount = 0;
+        for (OrderItem item : items) totalAmount += item.getSubtotal();
+        return totalAmount;
+    }
+
+    public void markPaid() { paid = true; }
+    public boolean isPaid() { return paid; }
+
+    @Override
+    public String toString() {
+        return "Order ID: " + id + ", Vendor: " + vendor.getName() + ", Total: $" + totalAmount + ", Paid: " + paid;
+    }
+}
+
+class Payment {
+    private Order order;
+    private double amount;
+    private Date paymentDate;
+
+    public Payment(Order order, double amount) {
+        this.order = order;
+        this.amount = amount;
+        this.paymentDate = new Date();
+    }
+
+    public void processPayment() {
+        if (amount >= order.calculateTotal()) {
+            order.markPaid();
+            System.out.println("Payment successful for Order " + order);
+        } else {
+            System.out.println("Insufficient payment amount!");
+        }
+    }
+}
+
+class Delivery {
+    private Order order;
+    private String status;
+
+    public Delivery(Order order) {
+        this.order = order;
+        this.status = "Pending";
+    }
+
+    public void updateStatus(String status) {
+        this.status = status;
+        System.out.println("Delivery status for Order " + order + ": " + status);
+    }
+}
+
+class ReturnRequest {
+    private Order order;
+    private Product product;
+    private int quantity;
+    private String reason;
+
+    public ReturnRequest(Order order, Product product, int quantity, String reason) {
+        this.order = order;
+        this.product = product;
+        this.quantity = quantity;
+        this.reason = reason;
+    }
+
+    public void processReturn() {
+        product.increaseQuantity(quantity);
+        System.out.println("Return processed for " + quantity + " of " + product.getName() + ". Reason: " + reason);
+    }
+}
+
+public class MarketSystem {
+    static Scanner scanner = new Scanner(System.in);
+    static Map<String, Vendor> vendors = new HashMap<>();
+    static List<Order> orders = new ArrayList<>();
+
+    public static void main(String[] args) {
+        while (true) {
+            System.out.println("\n--- Farmers' Market Menu ---");
+            System.out.println("1. Add Vendor");
+            System.out.println("2. Add Product");
+            System.out.println("3. Place Order");
+            System.out.println("4. Record Payment");
+            System.out.println("5. Record Delivery");
+            System.out.println("6. Request Return");
+            System.out.println("7. Display Vendor Inventory");
+            System.out.println("8. Exit");
+            System.out.print("Choose an option: ");
+
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            switch (choice) {
+                case 1 -> addVendor();
+                case 2 -> addProduct();
+                case 3 -> placeOrder();
+                case 4 -> recordPayment();
+                case 5 -> recordDelivery();
+                case 6 -> requestReturn();
+                case 7 -> displayInventory();
+                case 8 -> {
+                    System.out.println("Exiting system...");
+                    return;
+                }
+                default -> System.out.println("Invalid option!");
+            }
+        }
+    }
+
+    static void addVendor() {
+        System.out.print("Enter vendor name: ");
+        String name = scanner.nextLine();
+        vendors.put(name, new Vendor(name));
+        System.out.println("Vendor added.");
+    }
+
+    static void addProduct() {
+        System.out.print("Enter vendor name: ");
+        String vendorName = scanner.nextLine();
+        Vendor vendor = vendors.get(vendorName);
+        if (vendor == null) {
+            System.out.println("Vendor not found!");
+            return;
+        }
+
+        System.out.print("Enter product ID: ");
+        String id = scanner.nextLine();
+        System.out.print("Enter product name: ");
+        String name = scanner.nextLine();
+        System.out.print("Enter price: ");
+        double price = scanner.nextDouble();
+        System.out.print("Enter quantity: ");
+        int qty = scanner.nextInt();
+
+        vendor.addProduct(new Product(id, name, price, qty));
+        System.out.println("Product added.");
+    }
+
+    static void placeOrder() {
+        System.out.print("Enter vendor name: ");
+        String vendorName = scanner.nextLine();
+        Vendor vendor = vendors.get(vendorName);
+        if (vendor == null) {
+            System.out.println("Vendor not found!");
+            return;
+        }
+
+        String orderId = "ORD" + (orders.size() + 1);
+        Order order = new Order(orderId, vendor);
+
+        System.out.print("Enter product ID: ");
+        String productId = scanner.nextLine();
+        Product product = vendor.getProducts().stream()
+                .filter(p -> p.getId().equals(productId))
+                .findFirst().orElse(null);
+
+        if (product == null) {
+            System.out.println("Product not found!");
+            return;
+        }
+
+        System.out.print("Enter quantity: ");
+        int qty = scanner.nextInt();
+        scanner.nextLine();
+
+        order.addItem(new OrderItem(product, qty));
+        order.calculateTotal();
+        orders.add(order);
+        System.out.println("Order placed: " + order);
+    }
+
+    static void recordPayment() {
+        System.out.print("Enter order ID: ");
+        String id = scanner.nextLine();
+        for (Order o : orders) {
+            if (o.toString().contains(id)) {
+                System.out.print("Enter amount: ");
+                double amt = scanner.nextDouble();
+                new Payment(o, amt).processPayment();
+                return;
+            }
+        }
+        System.out.println("Order not found!");
+    }
+
+    static void recordDelivery() {
+        System.out.print("Enter order ID: ");
+        String id = scanner.nextLine();
+        for (Order o : orders) {
+            if (o.toString().contains(id)) {
+                Delivery d = new Delivery(o);
+                d.updateStatus("Delivered");
+                return;
+            }
+        }
+        System.out.println("Order not found!");
+    }
+
+    static void requestReturn() {
+        System.out.print("Enter order ID: ");
+        String id = scanner.nextLine();
+        for (Order o : orders) {
+            if (o.toString().contains(id)) {
+                Vendor vendor = o.vendor;
+                System.out.print("Enter product ID: ");
+                String pid = scanner.nextLine();
+                Product p = vendor.getProducts().stream()
+                        .filter(prod -> prod.getId().equals(pid))
+                        .findFirst().orElse(null);
+
+                if (p == null) {
+                    System.out.println("Product not found!");
+                    return;
+                }
+
+                System.out.print("Enter quantity to return: ");
+                int qty = scanner.nextInt();
+                scanner.nextLine();
+                System.out.print("Enter reason: ");
+                String reason = scanner.nextLine();
+
+                new ReturnRequest(o, p, qty, reason).processReturn();
+                return;
+            }
+        }
+        System.out.println("Order not found!");
+    }
+
+    static void displayInventory() {
+        System.out.print("Enter vendor name: ");
+        String vendorName = scanner.nextLine();
+        Vendor vendor = vendors.get(vendorName);
+        if (vendor == null) {
+            System.out.println("Vendor not found!");
+            return;
+        }
+
+        System.out.println("--- Inventory for " + vendor.getName() + " ---");
+        for (Product p : vendor.getProducts()) {
+            System.out.println(p);
+        }
+    }
+}
+
+
+OUTPUT:
+--- Farmers' Market Menu ---
+1. Add Vendor
+2. Add Product
+3. Place Order
+4. Record Payment
+5. Record Delivery
+6. Request Return
+7. Display Vendor Inventory
+8. Exit
+Choose an option: 1
+Enter vendor name: FreshFarms
+Vendor added.
+
+--- Farmers' Market Menu ---
+1. Add Vendor
+2. Add Product
+3. Place Order
+4. Record Payment
+5. Record Delivery
+6. Request Return
+7. Display Vendor Inventory
+8. Exit
+Choose an option: 2
+Enter vendor name: FreshFarms
+Enter product name: Tomatoes
+Enter quantity: 100
+Product added.
+
+--- Farmers' Market Menu ---
+Choose an option: 7
+Vendor: FreshFarms
+  Tomatoes: 100
+
+--- Farmers' Market Menu ---
+Choose an option: 3
+Enter vendor name: FreshFarms
+Enter product name: Tomatoes
+Enter quantity: 20
+Enter delivery address: 12 Green Street
+Order placed.
+
+--- Farmers' Market Menu ---
+Choose an option: 7
+Vendor: FreshFarms
+  Tomatoes: 80
+
+--- Farmers' Market Menu ---
+Choose an option: 4
+Enter vendor name: FreshFarms
+Enter product name: Tomatoes
+Payment recorded.
+
+--- Farmers' Market Menu ---
+Choose an option: 5
+Enter vendor name: FreshFarms
+Enter product name: Tomatoes
+Delivery recorded.
+
+--- Farmers' Market Menu ---
+Choose an option: 6
+Enter vendor name: FreshFarms
+Enter product name: Tomatoes
+Return processed.
+
+--- Farmers' Market Menu ---
+Choose an option: 7
+Vendor: FreshFarms
+  Tomatoes: 100
